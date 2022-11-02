@@ -88,6 +88,12 @@ func (m *Postgres) Connect() error {
 	}
 	m.DB = db
 
+	return nil
+
+}
+
+func (m *Postgres) Init() {
+
 	// migrate
 	m.commands = append(m.commands, &cobra.Command{
 		Use: "migrate",
@@ -98,11 +104,6 @@ func (m *Postgres) Connect() error {
 		},
 	})
 
-	return nil
-
-}
-
-func (m *Postgres) Init() {
 	if m.DB == nil {
 		_ = m.Do(m.Connect)
 	}
