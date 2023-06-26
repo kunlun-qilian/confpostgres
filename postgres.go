@@ -15,9 +15,9 @@ import (
 
 type Postgres struct {
 	// Database Name
-	DBName          string `env:""`
-	Host            string `env:""`
-	Port            int
+	DBName          string           `env:""`
+	Host            string           `env:""`
+	Port            int              `env:""`
 	User            string           `env:""`
 	Password        envconf.Password `env:""`
 	Extra           string
