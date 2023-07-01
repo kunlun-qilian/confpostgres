@@ -20,9 +20,9 @@ type Postgres struct {
 	Port            int              `env:""`
 	User            string           `env:""`
 	Password        envconf.Password `env:""`
+	PoolSize        int              `env:""`
 	Extra           string
 	Extensions      []string
-	PoolSize        int
 	ConnMaxLifetime envconf.Duration
 	Database        *sqlx.Database `env:"-"`
 	*sqlx.DB        `env:"-"`
