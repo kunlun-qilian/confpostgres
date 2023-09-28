@@ -9,20 +9,16 @@ import (
 	"github.com/kunlun-qilian/sqlx/v2"
 )
 
-func Test(t *testing.T) {
+func TestEndpoint(t *testing.T) {
 
-	pg := &Postgres{
-		Host:      "127.0.0.1",
-		SlaveHost: "127.0.0.1",
-		User:      "postgres",
+	pg := &PostgresEndpoint{
 		Database: &sqlx.Database{
 			Name: "osm",
 		},
-		Extensions: []string{
-			"postgis", "hstore",
-		},
 	}
 
+	_ = pg.Endpoint.UnmarshalText([]byte("postgresql://postgres:root@127.0.0.1:5432/test"))
+	_ = pg.SlaveEndpoint.UnmarshalText([]byte("postgresql://postgres:root@127.0.0.1:5432"))
 	pg.SetDefaults()
 	pg.Init()
 

@@ -3,38 +3,53 @@ package confpostgres
 import (
 	"context"
 	"fmt"
-	"github.com/go-courier/sqlx/v2"
-	"github.com/go-courier/sqlx/v2/migration"
 	"time"
 
-	"github.com/go-courier/sqlx/v2/postgresqlconnector"
+	"github.com/kunlun-qilian/sqlx/v2/postgresqlconnector"
 
 	"github.com/go-courier/envconf"
-	"github.com/spf13/cobra"
+	"github.com/kunlun-qilian/sqlx/v2"
 )
 
 type Postgres struct {
-	// Database Name
-	DBName          string           `env:""`
-	Host            string           `env:""`
-	Port            int              `env:""`
+	Host            string `env:",upstream"`
+	SlaveHost       string `env:",upstream"`
+	Port            int
 	User            string           `env:""`
 	Password        envconf.Password `env:""`
-	PoolSize        int              `env:""`
 	Extra           string
 	Extensions      []string
+	PoolSize        int
 	ConnMaxLifetime envconf.Duration
 	Database        *sqlx.Database `env:"-"`
-	*sqlx.DB        `env:"-"`
 
-	commands []*cobra.Command
+	*sqlx.DB `env:"-"`
+	slaveDB  *sqlx.DB `env:"-"`
+}
 
-	Retry
+func (m *Postgres) LivenessCheck() map[string]string {
+	s := map[string]string{}
+
+	_, err := m.DB.ExecContext(context.Background(), "SELECT 1")
+	if err != nil {
+		s[m.Host] = err.Error()
+	} else {
+		s[m.Host] = "ok"
+	}
+
+	if m.slaveDB != nil {
+		_, err := m.slaveDB.ExecContext(context.Background(), "SELECT 1")
+		if err != nil {
+			s[m.SlaveHost] = err.Error()
+		} else {
+			s[m.SlaveHost] = "ok"
+		}
+	}
+
+	return s
 }
 
 func (m *Postgres) SetDefaults() {
-	m.Database.Name = m.DBName
-
 	if m.Host == "" {
 		m.Host = "127.0.0.1"
 	}
@@ -54,13 +69,6 @@ func (m *Postgres) SetDefaults() {
 	if m.Extra == "" {
 		m.Extra = "sslmode=disable"
 	}
-
-	if m.Repeats == 0 {
-		m.Repeats = 3
-	}
-	if m.Interval == 0 {
-		m.Interval = envconf.Duration(10 * time.Second)
-	}
 }
 
 func (m *Postgres) url(host string) string {
@@ -71,9 +79,9 @@ func (m *Postgres) url(host string) string {
 	return fmt.Sprintf("postgres://%s%s@%s:%d", m.User, password, host, m.Port)
 }
 
-func (m *Postgres) Connect() error {
+func (m *Postgres) conn(host string) (*sqlx.DB, error) {
 	db := m.Database.OpenDB(&postgresqlconnector.PostgreSQLConnector{
-		Host:       m.url(m.Host),
+		Host:       m.url(host),
 		Extra:      m.Extra,
 		Extensions: m.Extensions,
 	})
@@ -84,38 +92,58 @@ func (m *Postgres) Connect() error {
 
 	_, err := db.ExecContext(context.Background(), "SELECT 1")
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	m.DB = db
 
-	return nil
-
+	return db, nil
 }
 
-func (m *Postgres) Init() {
-
-	// migrate
-	m.commands = append(m.commands, &cobra.Command{
-		Use: "migrate",
-		Run: func(cmd *cobra.Command, args []string) {
-			if err := migration.Migrate(m.DB, nil); err != nil {
-				panic(err)
-			}
-		},
-	})
-
-	if m.DB == nil {
-		_ = m.Do(m.Connect)
-	}
-}
-
-func (m *Postgres) Get() *sqlx.DB {
-	if m.DB == nil {
-		panic(fmt.Errorf("get db before init"))
+func (m *Postgres) UseSlave() sqlx.DBExecutor {
+	if m.slaveDB != nil {
+		return m.slaveDB
 	}
 	return m.DB
 }
 
-func (m *Postgres) Commands() []*cobra.Command {
-	return m.commands
+func (m *Postgres) Init() {
+	r := Retry{Repeats: 5, Interval: envconf.Duration(1 * time.Second)}
+
+	err := r.Do(func() error {
+		db, err := m.conn(m.Host)
+		if err != nil {
+			return err
+		}
+		m.DB = db
+		return nil
+	})
+
+	if err != nil {
+		panic(err)
+	}
+
+	if m.SlaveHost != "" {
+		err := r.Do(func() error {
+			db, err := m.conn(m.SlaveHost)
+			if err != nil {
+				return err
+			}
+			m.slaveDB = db
+			return nil
+		})
+
+		if err != nil {
+			panic(err)
+		}
+	}
+}
+
+func SwitchSlave(executor sqlx.DBExecutor) sqlx.DBExecutor {
+	if canSlave, ok := executor.(CanSlave); ok {
+		return canSlave.UseSlave()
+	}
+	return executor
+}
+
+type CanSlave interface {
+	UseSlave() sqlx.DBExecutor
 }
