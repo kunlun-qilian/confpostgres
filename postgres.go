@@ -3,18 +3,21 @@ package confpostgres
 import (
 	"context"
 	"fmt"
+	"github.com/kunlun-qilian/sqlx/v3/migration"
 	"time"
 
 	"github.com/kunlun-qilian/sqlx/v3/postgresqlconnector"
 
 	"github.com/go-courier/envconf"
 	"github.com/kunlun-qilian/sqlx/v3"
+	"github.com/spf13/cobra"
 )
 
 type Postgres struct {
-	Host            string `env:",upstream"`
-	SlaveHost       string `env:",upstream"`
-	Port            int
+	DBName          string           `env:""`
+	Host            string           `env:",upstream"`
+	SlaveHost       string           `env:",upstream"`
+	Port            int              `env:""`
 	User            string           `env:""`
 	Password        envconf.Password `env:""`
 	Extra           string
@@ -25,6 +28,8 @@ type Postgres struct {
 
 	*sqlx.DB `env:"-"`
 	slaveDB  *sqlx.DB `env:"-"`
+
+	commands []*cobra.Command
 }
 
 func (m *Postgres) LivenessCheck() map[string]string {
@@ -50,6 +55,8 @@ func (m *Postgres) LivenessCheck() map[string]string {
 }
 
 func (m *Postgres) SetDefaults() {
+
+	m.Database.Name = m.DBName
 	if m.Host == "" {
 		m.Host = "127.0.0.1"
 	}
@@ -106,6 +113,16 @@ func (m *Postgres) UseSlave() sqlx.DBExecutor {
 }
 
 func (m *Postgres) Init() {
+	// add migrate
+	m.commands = append(m.commands, &cobra.Command{
+		Use: "migrate",
+		Run: func(cmd *cobra.Command, args []string) {
+			if err := migration.Migrate(m.DB, nil); err != nil {
+				panic(err)
+			}
+		},
+	})
+
 	r := Retry{Repeats: 5, Interval: envconf.Duration(1 * time.Second)}
 
 	err := r.Do(func() error {
@@ -146,4 +163,15 @@ func SwitchSlave(executor sqlx.DBExecutor) sqlx.DBExecutor {
 
 type CanSlave interface {
 	UseSlave() sqlx.DBExecutor
+}
+
+func (m *Postgres) Get() *sqlx.DB {
+	if m.DB == nil {
+		panic(fmt.Errorf("get db before init"))
+	}
+	return m.DB
+}
+
+func (m *Postgres) Commands() []*cobra.Command {
+	return m.commands
 }
