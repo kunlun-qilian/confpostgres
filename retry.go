@@ -1,6 +1,7 @@
 package confpostgres
 
 import (
+	"fmt"
 	"os"
 	"time"
 
@@ -31,7 +32,7 @@ func (r Retry) Do(exec func() error) (err error) {
 	for i := 0; i < r.Repeats; i++ {
 		err = exec()
 		if err != nil {
-			log.Warn("retry in seconds [%v]", r.Interval)
+			log.Warn(fmt.Sprintf("retry in seconds [%d]", r.Interval))
 			time.Sleep(time.Duration(r.Interval))
 			continue
 		}

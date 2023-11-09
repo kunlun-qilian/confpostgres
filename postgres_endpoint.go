@@ -3,6 +3,7 @@ package confpostgres
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/go-courier/envconf"
@@ -107,6 +108,11 @@ func (m *PostgresEndpoint) UseSlave() sqlx.DBExecutor {
 }
 
 func (m *PostgresEndpoint) Init() {
+	// 执行 dockerize 时不连接数据库
+	if len(os.Args) > 1 && os.Args[1] == "dockerize" {
+		return
+	}
+
 	// 若配置中指定库名，覆盖默认值
 	if len(m.Endpoint.Base) > 0 {
 		m.Database.Name = m.Endpoint.Base
