@@ -3,7 +3,7 @@ package confpostgres
 import (
 	"context"
 
-	"github.com/kunlun-qilian/sqlx/v2"
+	"github.com/kunlun-qilian/sqlx/v3"
 )
 
 type contextKeyDBExecutor int

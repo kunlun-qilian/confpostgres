@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/go-courier/envconf"
-	"github.com/kunlun-qilian/sqlx/v2"
-	"github.com/kunlun-qilian/sqlx/v2/postgresqlconnector"
+	"github.com/kunlun-qilian/sqlx/v3"
+	"github.com/kunlun-qilian/sqlx/v3/postgresqlconnector"
 )
 
 type PostgresEndpoint struct {

@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/go-courier/envconf v1.4.0
-	github.com/kunlun-qilian/sqlx/v2 v2.24.0
+	github.com/kunlun-qilian/sqlx/v3 v3.0.0
 	github.com/onsi/gomega v1.30.0
 	golang.org/x/exp v0.0.0-20230905200255-921286631fa9
 )

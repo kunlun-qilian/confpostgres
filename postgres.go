@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/kunlun-qilian/sqlx/v2/postgresqlconnector"
+	"github.com/kunlun-qilian/sqlx/v3/postgresqlconnector"
 
 	"github.com/go-courier/envconf"
-	"github.com/kunlun-qilian/sqlx/v2"
+	"github.com/kunlun-qilian/sqlx/v3"
 )
 
 type Postgres struct {

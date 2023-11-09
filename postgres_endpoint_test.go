@@ -6,7 +6,7 @@ import (
 
 	"github.com/onsi/gomega"
 
-	"github.com/kunlun-qilian/sqlx/v2"
+	"github.com/kunlun-qilian/sqlx/v3"
 )
 
 func TestEndpoint(t *testing.T) {
