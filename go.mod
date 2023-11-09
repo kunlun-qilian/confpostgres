@@ -1,4 +1,4 @@
-module git.querycap.com/kunlun-qilian/confpostgres
+module github.com/kunlun-qilian/confpostgres
 
 go 1.17
 
