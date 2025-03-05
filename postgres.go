@@ -3,9 +3,9 @@ package confpostgres
 import (
 	"context"
 	"fmt"
-	"github.com/kunlun-qilian/sqlx/v3/migration"
 	"time"
 
+	"github.com/kunlun-qilian/sqlx/v3/migration"
 	"github.com/kunlun-qilian/sqlx/v3/postgresqlconnector"
 
 	"github.com/go-courier/envconf"
@@ -14,6 +14,7 @@ import (
 )
 
 type Postgres struct {
+	Ctx             context.Context
 	DBName          string           `env:""`
 	Host            string           `env:",upstream"`
 	SlaveHost       string           `env:",upstream"`
@@ -25,9 +26,8 @@ type Postgres struct {
 	PoolSize        int
 	ConnMaxLifetime envconf.Duration
 	Database        *sqlx.Database `env:"-"`
-
-	*sqlx.DB `env:"-"`
-	slaveDB  *sqlx.DB `env:"-"`
+	*sqlx.DB        `env:"-"`
+	slaveDB         *sqlx.DB `env:"-"`
 
 	commands []*cobra.Command
 }
@@ -55,7 +55,7 @@ func (m *Postgres) LivenessCheck() map[string]string {
 }
 
 func (m *Postgres) SetDefaults() {
-
+	fmt.Println(111)
 	m.Database.Name = m.DBName
 	if m.Host == "" {
 		m.Host = "127.0.0.1"
@@ -75,6 +75,10 @@ func (m *Postgres) SetDefaults() {
 
 	if m.Extra == "" {
 		m.Extra = "sslmode=disable"
+	}
+
+	if m.Ctx == nil {
+		m.Ctx = context.Background()
 	}
 }
 
@@ -97,7 +101,7 @@ func (m *Postgres) conn(host string) (*sqlx.DB, error) {
 	db.SetMaxIdleConns(m.PoolSize / 2)
 	db.SetConnMaxLifetime(time.Duration(m.ConnMaxLifetime))
 
-	_, err := db.ExecContext(context.Background(), "SELECT 1")
+	_, err := db.ExecContext(m.Ctx, "SELECT 1")
 	if err != nil {
 		return nil, err
 	}
@@ -113,22 +117,22 @@ func (m *Postgres) UseSlave() sqlx.DBExecutor {
 }
 
 func (m *Postgres) Init() {
-	// add migrate
+	m.SetDefaults()
+	// // add migrate
 	m.commands = append(m.commands, &cobra.Command{
 		Use: "migrate",
 		Run: func(cmd *cobra.Command, args []string) {
-			if err := migration.Migrate(m.DB, nil); err != nil {
+			if err := migration.Migrate(m.DB.WithContext(m.Ctx), nil); err != nil {
 				panic(err)
 			}
 		},
 	})
-
 	r := Retry{Repeats: 5, Interval: envconf.Duration(1 * time.Second)}
 
 	err := r.Do(func() error {
 		db, err := m.conn(m.Host)
 		if err != nil {
-			return err
+			return fmt.Errorf("connect to db %s error:%s", m.DBName, err)
 		}
 		m.DB = db
 		return nil
