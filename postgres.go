@@ -55,7 +55,6 @@ func (m *Postgres) LivenessCheck() map[string]string {
 }
 
 func (m *Postgres) SetDefaults() {
-	fmt.Println(111)
 	m.Database.Name = m.DBName
 	if m.Host == "" {
 		m.Host = "127.0.0.1"
